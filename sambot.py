@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 import logging
 import time
 import os
+import traceback
 
 from abc import ABC, abstractmethod
 
@@ -107,10 +108,10 @@ class Sambot:
         for segment in self._pipelineSegments:
             try:
                 if await segment.CanHandle(self, message):
+                    self.logger.info(f'Segment accepted message {type(segment).__name__}')
                     await segment.ProcessMessage(self, message=message, bot=client)
             except Exception as ex:
-                self.logger.error(f'Error in {type(segment).__name__} segment :\n{ex}')
-                raise ex
+                self.logger.error(f'Error in {type(segment).__name__} segment :\n{traceback.format_exc()}')
 
     '''
     Add a pipeline segment

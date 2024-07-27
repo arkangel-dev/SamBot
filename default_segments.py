@@ -41,9 +41,11 @@ class TikTokDownloader(BotPipelineSegmentBase):
     async def ProcessMessage(self, sambot: Sambot, bot: Client, message: Message):
         if (message.reply_to_message is None):
             await self.ReplyWithIssue(bot, message, "You need to reply to a message with a url!")
+            return
         url_match = re.search(self.url_pattern, message.reply_to_message.text)
         if not url_match:
             await self.ReplyWithIssue(bot, message, "You need to reply to a message with a url, and no url was detected in this message!")
+            return
 
         await bot.edit_message_text(message.chat.id, message.id, f"Please wait while I download the file")
         file = self.download_tiktok_video(url_match.string)
