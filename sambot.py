@@ -4,7 +4,7 @@ from pyrogram.types import Message
 from pyrogram.errors.exceptions import AuthKeyUnregistered, SessionPasswordNeeded
 
 from exceptions import PipelineNotImplementedException
-from typing import List, Coroutine
+from typing import List, Coroutine, Any
 from datetime import datetime, timezone
 import logging
 import time
@@ -24,7 +24,7 @@ class Sambot:
     Setup the logging. Print to console
     '''
     def _setupLogging(self):
-        self.logger = logging.getLogger('sambot')
+        self.logger: logging.Logger = logging.getLogger('sambot')
         self.logger.setLevel(logging.DEBUG)
         ch = logging.StreamHandler()
         ch.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
@@ -105,13 +105,15 @@ class Sambot:
     '''
     async def _handleMessage(self, client: Client, message: Message):
         for segment in self._pipelineSegments:
-            if await segment.CanHandle(self, message):
-                await segment.ProcessMessage(self, message=message, bot=client)
+            try:
+                if await segment.CanHandle(self, message):
+                    await segment.ProcessMessage(self, message=message, bot=client)
+            except Exception as ex:
+                self.logger.error(f'Error in {type(segment).__name__} segment :\n{str(ex)}')
 
     '''
     Add a pipeline segment
     '''
-    
     def AddPipelineSegment(self, segment):
         if not isinstance(segment, BotPipelineSegmentBase):
             raise PipelineNotImplementedException(f'The object {type(segment).__name__} does not implement the BotPipelineSegmentBase interface')

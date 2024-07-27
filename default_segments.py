@@ -12,14 +12,12 @@ Segment to indicate if the bot is alive.
 
 Activate by sending '.ping'
 '''
-
 class PingIndicator(BotPipelineSegmentBase):
     async def CanHandle(self, sambot: Sambot, message: Message):
-        if (message.text == '.ping'):
-            return True
+        return message.text == '.ping'
         
     async def ProcessMessage(self, sambot: Sambot, bot: Client, message: Message):
         uptime = (datetime.now(timezone.utc) - sambot._startTimeUtc).total_seconds()
-        reply_message = await bot.send_message(message.chat.id, f"Online. I've been up for {int(uptime)} seconds now. Uptime was at {sambot._startTimeUtc}", reply_to_message_id=message.id)
-        await asyncio.sleep(10)
-        await bot.delete_messages(chat_id=message.chat.id, message_ids=[reply_message.id])
+        await bot.edit_message_text(message.chat.id, message.id, f"Online. I've been up for {int(uptime)} seconds now. Uptime was at {sambot._startTimeUtc}")
+        await asyncio.sleep(3)
+        await bot.delete_messages(chat_id=message.chat.id, message_ids=[message.id])
