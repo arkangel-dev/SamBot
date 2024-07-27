@@ -1,5 +1,6 @@
 from sambot import Sambot
 from dotenv import load_dotenv
+from example import ExamplePipeline
 import os
 
 load_dotenv()
@@ -14,4 +15,5 @@ sammy = Sambot(
     phone_number=phone_number
 )
 sammy.AddDefaultPipeLines()
+sammy.AddPipelineSegment(ExamplePipeline())
 sammy.Start()

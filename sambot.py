@@ -148,7 +148,7 @@ class BotPipelineSegmentBase(ABC):
     return true
     '''
     @abstractmethod
-    async def CanHandle(self, sambot:Sambot, message:Message) -> Coroutine[None, None, bool]:
+    async def CanHandle(self, sambot:Sambot, message:Message):
         return False
 
     '''
@@ -157,7 +157,7 @@ class BotPipelineSegmentBase(ABC):
     Returns: A flag that indicate if the pipeline should terminate
     '''
     @abstractmethod
-    async def ProcessMessage(self, sambot:Sambot, bot:Client, message:Message) -> Coroutine[None, None, None]:
+    async def ProcessMessage(self, sambot:Sambot, bot:Client, message:Message):
         pass
 
     

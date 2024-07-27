@@ -14,11 +14,11 @@ Activate by sending '.ping'
 '''
 
 class PingIndicator(BotPipelineSegmentBase):
-    async def CanHandle(self, sambot: Sambot, message: Message) -> Coroutine[None, None, bool]:
+    async def CanHandle(self, sambot: Sambot, message: Message):
         if (message.text == '.ping'):
             return True
         
-    async def ProcessMessage(self, sambot: Sambot, bot: Client, message: Message) -> Coroutine[None, None, None]:
+    async def ProcessMessage(self, sambot: Sambot, bot: Client, message: Message):
         uptime = (datetime.now(timezone.utc) - sambot._startTimeUtc).total_seconds()
         reply_message = await bot.send_message(message.chat.id, f"Online. I've been up for {int(uptime)} seconds now. Uptime was at {sambot._startTimeUtc}", reply_to_message_id=message.id)
         await asyncio.sleep(10)

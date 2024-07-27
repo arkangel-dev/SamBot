@@ -3,3 +3,6 @@
 otp.code
 *.session
 *.session-journal
+example.py
+test.py
+.venv
