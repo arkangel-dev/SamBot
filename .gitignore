@@ -7,3 +7,4 @@ example.py
 test.py
 .venv
 __pycache__
+*.mp4

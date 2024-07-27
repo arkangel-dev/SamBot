@@ -109,7 +109,8 @@ class Sambot:
                 if await segment.CanHandle(self, message):
                     await segment.ProcessMessage(self, message=message, bot=client)
             except Exception as ex:
-                self.logger.error(f'Error in {type(segment).__name__} segment :\n{str(ex)}')
+                self.logger.error(f'Error in {type(segment).__name__} segment :\n{ex}')
+                raise ex
 
     '''
     Add a pipeline segment
@@ -123,8 +124,10 @@ class Sambot:
     Add default segments
     '''
     def AddDefaultPipeLines(self):
-        from default_segments import PingIndicator
+        from default_segments import PingIndicator, TikTokDownloader
         self.AddPipelineSegment(PingIndicator())
+        self.AddPipelineSegment(TikTokDownloader())
+        
 
     '''
     Start the bot
