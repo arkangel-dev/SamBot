@@ -14,7 +14,9 @@ import traceback
 from abc import ABC, abstractmethod
 
 
-
+'''
+Main Sambot class
+'''
 class Sambot:
     bot: Client
 
@@ -107,10 +109,14 @@ class Sambot:
     async def _handleMessage(self, client: Client, message: Message):
         for segment in self._pipelineSegments:
             try:
-                if await segment.CanHandle(self, message):
+                if await segment.CanHandle(self, MessageAdapter(message)):
                     self.logger.info(f'Segment accepted message {type(segment).__name__}')
-                    await segment.ProcessMessage(self, message=message, bot=client)
+                    await segment.ProcessMessage(self, message=MessageAdapter(message), bot=client)
             except Exception as ex:
+                await client.send_message(
+                    chat_id=message.chat.id,
+                    text=f'Whoops. Something went wrong in the {type(segment).__name__} pipeline segment',
+                    reply_to_message_id=message.reply_to_top_message_id)
                 self.logger.error(f'Error in {type(segment).__name__} segment :\n{traceback.format_exc()}')
 
     '''
@@ -125,9 +131,18 @@ class Sambot:
     Add default segments
     '''
     def AddDefaultPipeLines(self):
-        from default_segments import PingIndicator, TikTokDownloader
+        from default_segments import PingIndicator, TikTokDownloader, BackTrace, Autopilot
+        from chatgpt import ChatGpt
+
+        self.chatgpt= ChatGpt(
+            username=os.getenv('CHATGPT_USERNAME'),
+            password=os.getenv('CHATGPT_PASSWORD')
+        )
+        self.chatgpt.Login()
         self.AddPipelineSegment(PingIndicator())
         self.AddPipelineSegment(TikTokDownloader())
+        self.AddPipelineSegment(BackTrace(self.chatgpt))
+        # self.AddPipelineSegment(Autopilot(self.chatgpt))
         
 
     '''
@@ -140,6 +155,28 @@ class Sambot:
         self._startTimeUtc = datetime.now(timezone.utc)
         self.bot.run()
 
+'''
+Message adapter for pyrogram messages
+'''
+class MessageAdapter(Message):
+
+    def __init__(self, msg: Message):
+        self.__dict__ = msg.__dict__
+
+    def IsTopicMessage(self):
+        if self.reply_to_message:
+            if not self.reply_to_message.text:
+                return True
+        return False
+    
+    '''
+    Is this a real reply or is it a topic reply?
+    '''
+    def IsRealReply(self):
+        if self.reply_to_message:
+            if self.reply_to_message.text:
+                return True
+        return False
 
 '''
 This is the base class for pipeline segments
@@ -154,7 +191,7 @@ class BotPipelineSegmentBase(ABC):
     return true
     '''
     @abstractmethod
-    async def CanHandle(self, sambot:Sambot, message:Message):
+    async def CanHandle(self, sambot:Sambot, message:MessageAdapter):
         return False
 
     '''
@@ -163,7 +200,7 @@ class BotPipelineSegmentBase(ABC):
     Returns: A flag that indicate if the pipeline should terminate
     '''
     @abstractmethod
-    async def ProcessMessage(self, sambot:Sambot, bot:Client, message:Message):
+    async def ProcessMessage(self, sambot:Sambot, bot:Client, message:MessageAdapter):
         pass
 
     
