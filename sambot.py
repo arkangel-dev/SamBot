@@ -123,6 +123,7 @@ class Sambot:
     Add a pipeline segment
     '''
     def AddPipelineSegment(self, segment):
+        self.logger.info(f'Registered segment ({type(segment).__name__})')
         if not isinstance(segment, BotPipelineSegmentBase):
             raise PipelineNotImplementedException(f'The object {type(segment).__name__} does not implement the BotPipelineSegmentBase interface')
         self._pipelineSegments.append(segment)
@@ -132,16 +133,16 @@ class Sambot:
     '''
     def AddDefaultPipeLines(self):
         from default_segments import PingIndicator, TikTokDownloader, BackTrace, Autopilot
-        from chatgpt import ChatGpt
+        # from chatgpt import ChatGpt
 
-        self.chatgpt= ChatGpt(
-            username=os.getenv('CHATGPT_USERNAME'),
-            password=os.getenv('CHATGPT_PASSWORD')
-        )
-        self.chatgpt.Login()
+        # self.chatgpt= ChatGpt(
+        #     username=os.getenv('CHATGPT_USERNAME'),
+        #     password=os.getenv('CHATGPT_PASSWORD')
+        # )
+        # self.chatgpt.Login()
         self.AddPipelineSegment(PingIndicator())
         self.AddPipelineSegment(TikTokDownloader())
-        self.AddPipelineSegment(BackTrace(self.chatgpt))
+        # self.AddPipelineSegment(BackTrace(self.chatgpt))
         # self.AddPipelineSegment(Autopilot(self.chatgpt))
         
 

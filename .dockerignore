@@ -1,0 +1,10 @@
+.vs
+.env
+otp.code
+*.session
+*.session-journal
+example.py
+test.py
+.venv
+__pycache__
+*.mp4

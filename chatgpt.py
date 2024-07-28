@@ -4,6 +4,7 @@ import time
 import asyncio
 
 from typing import Tuple
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -16,11 +17,14 @@ class ChatGpt:
     driver: uc.Chrome = None
 
     def __init__(self, username:str, password:str) -> None:
+        self._setupLogging()
         self._username = username
         self._password = password
-        self.driver = uc.Chrome(headless=False, use_subprocess=False, driver_executable_path='C:\selenium\chromedriver-win64\chromedriver-win64\chromedriver.exe')
-        self._setupLogging()
-        pass
+        self.logger.info('Setting up Undetected Chrome Driver')
+        options = Options()
+        options.add_argument('--headless')
+        self.driver = uc.Chrome(headless=True, use_subprocess=True, options=options)
+        self.logger.info('Undetected Chrome Driver setup complete')
 
     '''
     Setup the logging. Print to console
@@ -50,7 +54,12 @@ class ChatGpt:
         )
 
     def Login(self):
+
+        self.logger.debug('Starting login sequence')
         self.driver.get('https://chatgpt.com/')
+
+        time.sleep(5000)
+        print(self.driver.get_screenshot_as_base64())
         self._waitForElement(By.ID, 'prompt-textarea')
         self.logger.debug('Page loaded')
 
@@ -84,11 +93,6 @@ class ChatGpt:
         
         prompt_element = self._locateElement(By.ID, 'prompt-textarea')
         prompt_element.send_keys('\n')
-        # actions = ActionChains(self.driver, duration=3)
-        # for msg in prompt.split('\n'):
-        #     actions.send_keys(msg)
-        #     actions.key_down(Keys.SHIFT).send_keys(Keys.ENTER).key_up(Keys.SHIFT)
-        # actions.move_to_element(prompt_element).click().perform()
         time.sleep(2)
         send_button = self._locateElement(By.XPATH, '//button[@data-testid="send-button"]')
         send_button.click()
