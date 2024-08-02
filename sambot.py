@@ -2,7 +2,7 @@ from pyrogram import Client
 from pyrogram.handlers import MessageHandler
 from pyrogram.types import Message
 from pyrogram.errors.exceptions import AuthKeyUnregistered, SessionPasswordNeeded
-
+from pyrogram.enums import MessageEntityType
 from exceptions import PipelineNotImplementedException
 from typing import List, Coroutine, Any
 from datetime import datetime, timezone
@@ -10,6 +10,7 @@ import logging
 import time
 import os
 import traceback
+import json
 
 from abc import ABC, abstractmethod
 
@@ -22,6 +23,7 @@ class Sambot:
 
     _pipelineSegments: 'List[BotPipelineSegmentBase]' = []
     _startTimeUtc: datetime
+    configuration: dict
 
     '''
     Setup the logging. Print to console
@@ -39,6 +41,7 @@ class Sambot:
     def __init__(self, bot: Client):
         self._setupLogging()
         self.bot = bot
+        self.configuration = self._read_json("settings.json")
 
     '''
     Constructor
@@ -50,6 +53,7 @@ class Sambot:
             api_id=api_id,
             api_hash=api_hash
         )
+        self.configuration = self._read_json("settings.json")
         
         try:
             self.bot.connect()
@@ -61,10 +65,46 @@ class Sambot:
         
         self.bot.disconnect()
 
-    '''
-    Authenticate via 2FA. Works by checking for updates in a file for the code
-    '''
+    def SaveConfiguration(self):
+        self._write_json("settings.json", self.configuration)
+
+    def _read_json(self, file_path):
+        """
+        Reads a JSON file and returns the data as a Python object.
+        
+        :param file_path: Path to the JSON file.
+        :return: Data read from the JSON file.
+        """
+        try:
+            with open(file_path, 'r') as file:
+                data = json.load(file)
+                return data
+        except FileNotFoundError:
+            print(f"The file at {file_path} was not found.")
+        except json.JSONDecodeError:
+            print(f"Error decoding JSON from the file at {file_path}.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+
+    def _write_json(self, file_path, data):
+        """
+        Writes a Python object to a JSON file.
+        
+        :param file_path: Path to the JSON file.
+        :param data: Data to be written to the JSON file.
+        """
+        try:
+            with open(file_path, 'w') as file:
+                json.dump(data, file, indent=4)
+                print(f"Data successfully written to {file_path}.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+
+
     def _authenticate2fa(self, phone_number: str):
+        '''
+        Authenticate via 2FA. Works by checking for updates in a file for the code
+        '''
         codeSendInfo = self.bot.send_code(phone_number=phone_number)
         file_path = 'otp.code'
 
@@ -132,7 +172,7 @@ class Sambot:
     Add default segments
     '''
     def AddDefaultPipeLines(self):
-        from default_segments import PingIndicator, TikTokDownloader, BackTrace, Autopilot
+        from default_segments import PingIndicator, TikTokDownloader, BackTrace, Autopilot, MentionEveryone,MentionEveryone_Settings
         # from chatgpt import ChatGpt
 
         # self.chatgpt= ChatGpt(
@@ -142,6 +182,8 @@ class Sambot:
         # self.chatgpt.Login()
         self.AddPipelineSegment(PingIndicator())
         self.AddPipelineSegment(TikTokDownloader())
+        self.AddPipelineSegment(MentionEveryone())
+        self.AddPipelineSegment(MentionEveryone_Settings())
         # self.AddPipelineSegment(BackTrace(self.chatgpt))
         # self.AddPipelineSegment(Autopilot(self.chatgpt))
         
@@ -178,6 +220,19 @@ class MessageAdapter(Message):
             if self.reply_to_message.text:
                 return True
         return False
+    
+    async def GetMentionedUsers(self):
+        if not self.entities: return []
+        ids = []
+        for entity in self.entities:
+            if (entity.type == MessageEntityType.TEXT_MENTION):
+                ids.append(entity.user.id)
+                continue
+            
+            if (entity.type == MessageEntityType.MENTION):
+                mentioned_username = self.text[entity.offset : entity.length]
+                ids.append(mentioned_username)
+        return ids
 
 '''
 This is the base class for pipeline segments

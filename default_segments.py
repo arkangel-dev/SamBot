@@ -1,5 +1,6 @@
 from pyrogram import Client
-from pyrogram.types import Message, InputMediaVideo
+from pyrogram.types import Message, InputMediaVideo, MessageEntity, ChatMember
+from pyrogram.enums import MessageEntityType
 from typing import Coroutine, List
 from datetime import datetime, timezone
 from sambot import Sambot, BotPipelineSegmentBase, MessageAdapter
@@ -10,6 +11,9 @@ import uuid
 import asyncio
 import re
 import os
+
+
+
 
 '''
 Segment to indicate if the bot is alive. It will send a message with uptime duration
@@ -176,7 +180,53 @@ class Autopilot(BotPipelineSegmentBase):
         )
         
 
+'''
+Mention everyone in the chat when @everyone is mentioned
+'''
+class MentionEveryone(BotPipelineSegmentBase):
 
-
-
+    async def CanHandle(self, sambot: Sambot, message: MessageAdapter):
+        if not message.chat.id in sambot.configuration["mentioneveryone"]["allowed_chats"]: return
+        return '@everyone' in (await message.GetMentionedUsers())
     
+    async def ProcessMessage(self, sambot: Sambot, bot: Client, message: MessageAdapter):
+        mentioned_users = []
+        async for user in bot.get_chat_members(message.chat.id):
+            mentioned_users.append(f"[{user.user.first_name}](tg://user?id={user.user.id})")
+        await bot.send_message(
+            chat_id=message.chat.id,
+            text=' '.join(mentioned_users),
+            reply_to_message_id=message.id
+        )
+
+class MentionEveryone_Settings(BotPipelineSegmentBase):
+    async def CanHandle(self, sambot: Sambot, message: MessageAdapter):
+        if not message.from_user.is_self: return
+        return ' '.join(message.text.split()[:2]) == ".config everyone_mention"
+    
+    async def ProcessMessage(self, sambot: Sambot, bot: Client, message: MessageAdapter):
+        parts = message.text.split()
+
+        if (len(parts) == 2):
+            parts.append('')
+
+        if (parts[2] == 'add'):
+            sambot.configuration['mentioneveryone']['allowed_chats'].append(message.chat.id)
+        elif (parts[2] == 'remove'):
+            sambot.configuration['mentioneveryone']['allowed_chats'].append(message.chat.id)
+        else:
+            await bot.send_message(
+                chat_id=message.chat.id,
+                text="Uknown command. Please use .config everyone_mention add|remove",
+                reply_to_message_id=message.id
+            )
+            return
+        
+        await bot.send_message(
+                chat_id=message.chat.id,
+                text=f"Changes made",
+                reply_to_message_id=message.id
+            )
+        sambot.SaveConfiguration()
+        return
+

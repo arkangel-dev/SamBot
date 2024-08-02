@@ -15,6 +15,9 @@ from selenium.common.exceptions import NoSuchElementException
 class ChatGpt:
     
     driver: uc.Chrome = None
+    
+
+    
 
     def __init__(self, username:str, password:str) -> None:
         self._setupLogging()
@@ -25,6 +28,9 @@ class ChatGpt:
         options.add_argument('--headless')
         self.driver = uc.Chrome(headless=True, use_subprocess=True, options=options)
         self.logger.info('Undetected Chrome Driver setup complete')
+        
+
+
 
     '''
     Setup the logging. Print to console
