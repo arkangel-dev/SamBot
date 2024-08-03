@@ -12,8 +12,17 @@ Once that is done, run `run.py` and that will attempt to login to your account. 
 
 You might be asking why I didn't just get the code via console. I can do whatever I want. Don't ask questions. But yeah no, its so I can mount the `otp.code` when this project is dockerized
 
-#### Settings
-You need a `settings.json` file mounted to the docker container. Im sure you can figure that out yourself, because I can't be bothered to write the instructions here
+## Settings
+You need a `settings.json` file mounted to the docker container. Im sure you can figure that out yourself, because I can't be bothered to write the instructions here. Anyway the settings file should look like this
+
+```json
+{
+    "mentioneveryone": {
+        "allowed_chats": [
+        ]
+    }
+}
+```
 
 ### Adding new Segments
 

@@ -152,6 +152,7 @@ class Autopilot(BotPipelineSegmentBase):
         self.gpt = gpt
 
     async def CanHandle(self, sambot: Sambot, message: MessageAdapter):
+        if not message.text: return
         return self.active or message.text in ['.autopilot', '.autopilot add']
     
     async def ProcessMessage(self, sambot: Sambot, bot: Client, message: MessageAdapter):
@@ -186,6 +187,7 @@ Mention everyone in the chat when @everyone is mentioned
 class MentionEveryone(BotPipelineSegmentBase):
 
     async def CanHandle(self, sambot: Sambot, message: MessageAdapter):
+        if not message.text: return
         if not message.chat.id in sambot.configuration["mentioneveryone"]["allowed_chats"]: return
         return '@everyone' in (await message.GetMentionedUsers())
     
@@ -201,6 +203,7 @@ class MentionEveryone(BotPipelineSegmentBase):
 
 class MentionEveryone_Settings(BotPipelineSegmentBase):
     async def CanHandle(self, sambot: Sambot, message: MessageAdapter):
+        if not message.text: return
         if not message.from_user.is_self: return
         return ' '.join(message.text.split()[:2]) == ".config everyone_mention"
     
