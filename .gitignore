@@ -9,3 +9,5 @@ test.py
 __pycache__
 *.mp4
 settings.json
+ext-mount
+.vscode

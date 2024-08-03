@@ -1,67 +1,54 @@
 # SamBot 🤖
 
 ### Setup & Installation
-Run the following commands to set the environment variables
 ```bash
-export PYROGRAM_APIID=ENTER_YOUR_ID_HERE
-export PYROGRAM_APIHASH=ENTER_YOUR_HASH_HERE
-export PYROGRAM_PHONENUMBER=ENTEER_YOUR_PHONE_NUMBER_HERE
+mkdir -p mount/cache
+nano mount/settings.json
 ```
 
-Once that is done, run `run.py` and that will attempt to login to your account. For first time use, it will trigger an OTP sequence where you will get a code to your telegram account or SMS. When this happens a blank file named `otp.code` will be generated. You can enter the otp code into this file and save it and that should be it.
-
-You might be asking why I didn't just get the code via console. I can do whatever I want. Don't ask questions. But yeah no, its so I can mount the `otp.code` when this project is dockerized
-
-## Settings
-You need a `settings.json` file mounted to the docker container. Im sure you can figure that out yourself, because I can't be bothered to write the instructions here. Anyway the settings file should look like this
-
+Write the following to `mount/settings.json`
 ```json
 {
     "mentioneveryone": {
-        "allowed_chats": [
-        ]
+        "allowed_chats": []
     }
 }
 ```
 
-### Adding new Segments
+Write this to `compose.yaml` 
 
-Make a new class that implements the interface `BotPipelineSegmentBase`. The `CanHandle` method will determine if the segment can handle the message based on the content, and the `ProcessMessage` will be executed if the `CanHandle` method returns true
-```python
-from pyrogram import Client
-from pyrogram.types import Message
-from sambot import BotPipelineSegmentBase, Sambot
-
-# Pipeline segment that will execute if the message content is trigger-word
-# Once executed, will send the message 'Response to trigger`
-class ExamplePipeline(BotPipelineSegmentBase):
-     def CanHandle(self, sambot: Sambot, message: Message):
-        return message.text == ".trigger-word" 
-
-     def ProcessMessage(self, sambot: Sambot, bot: Client, message: Message):
-        bot.send_message(message.chat.id, "Response to trigger!")
+```yaml
+version: '3'
+services:
+  web:
+    build: .
+    image: ghcr.io/arkangel-dev/sambot:latest
+    volumes:
+      - ./ext-mount:/app/ext-mount
+    environment:
+      - PYROGRAM_PHONENUMBER=PHONE_NUMBER_HERE
+      - PYROGRAM_APIID=API_ID
+      - PYROGRAM_APIHASH=API_HASH
+      - CHATGPT_USERNAME=CHAT_GPT_USERNAME
+      - CHATGPT_PASSWORD=CHAT_GPT_PASSWORD
 ```
 
-Now, you can add this segment into the bot
+When the application starts up for the first time it will send an OTP code to either your telegram account or to your phone via SMS. Once you get the code, enter it into `mount/otp.code` file. This will create a new session. To test if you have successfully set everything up, you can try sending the message `.ping` to any chat and the message will be automatically edited to show information about the uptime of the bot
 
-```python
-from sambot import Sambot
-from dotenv import load_dotenv
-from example import ExamplePipeline
-import os
 
-load_dotenv()
 
-api_id=int(os.getenv("PYROGRAM_APIID"))
-api_hash=os.getenv("PYROGRAM_APIHASH")
-phone_number=os.getenv("PYROGRAM_PHONENUMBER")
+## Pipeline Segments (Features)
 
-sammy = Sambot(
-    api_id=api_id,
-    api_hash=api_hash,
-    phone_number=phone_number
-)
-sammy.AddDefaultPipeLines()
-sammy.AddPipelineSegment(ExamplePipeline()) # We are adding the new segment here
-sammy.Start()
-```
+- `PingIndicator`: This segment is used to check if the bot is up. Can be triggered by sending the message `.ping` to any chat
+
+
+- `TikTokDownloader`: This segment is used to download videos from links. To download things, the package [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) is used, it will work with TikTok, Instagram and YouTube. Check the package website for more information. The module can be triggered by replying to a message that contains a link with `.dl`.
+- `MentionEveryone`: This segment is used to mention everyone in the chat. Mention @everyone within a chat to mention everyone in the chat. To avoid this being triggered in other chats, a whitelist is used. To add a chat send the command `.config mentioneveryone add` to a chat and now that chat will support mentioning everyone
+- `BackTrace`: This segment fetches the last 100 messages sent in a chat and has ChatGPT summarize it and send it back in the chat. Can be triggered by sending `.backtrace` in a chat
+- `Autopilot`: Not gonna even bother with this
+
+
+
+## More stuff
+
+- [Adding new Segments](docs/adding-new-segments.md)

@@ -41,7 +41,7 @@ class Sambot:
     def __init__(self, bot: Client):
         self._setupLogging()
         self.bot = bot
-        self.configuration = self._read_json("settings.json")
+        self.configuration = self._read_json("ext-mount/settings.json")
 
     '''
     Constructor
@@ -51,9 +51,10 @@ class Sambot:
         self.bot = Client(
             name="sambot",
             api_id=api_id,
-            api_hash=api_hash
+            api_hash=api_hash,
+            workdir="ext-mount"
         )
-        self.configuration = self._read_json("settings.json")
+        self.configuration = self._read_json("ext-mount/settings.json")
         
         try:
             self.bot.connect()
@@ -66,7 +67,7 @@ class Sambot:
         self.bot.disconnect()
 
     def SaveConfiguration(self):
-        self._write_json("settings.json", self.configuration)
+        self._write_json("ext-mount/settings.json", self.configuration)
 
     def _read_json(self, file_path):
         """
@@ -106,7 +107,7 @@ class Sambot:
         Authenticate via 2FA. Works by checking for updates in a file for the code
         '''
         codeSendInfo = self.bot.send_code(phone_number=phone_number)
-        file_path = 'otp.code'
+        file_path = 'ext-mount/otp.code'
 
         self.logger.info(f'A code has been sent to your Telegram account. Please enter the code in the file {file_path}')
         otp_code = self._getOtpFileContents(file_path)
@@ -124,12 +125,13 @@ class Sambot:
             password = self._getOtpFileContents(file_path=file_path)
             self.bot.check_password(password=password)
        
-    '''
-    Creates a file with the provided name, waits for it to get
-    modified. And once its modified it will return the contents
-    of the file
-    '''
+
     def _getOtpFileContents(self, file_path) -> str:
+        '''
+        Creates a file with the provided name, waits for it to get
+        modified. And once its modified it will return the contents
+        of the file
+        '''
         with open(file_path, "w") as file:
             pass
         initial_mod_time = os.path.getmtime(file_path)
@@ -143,10 +145,11 @@ class Sambot:
                 break
         return newcontent
 
-    '''
-    Message handler
-    '''
+    
     async def _handleMessage(self, client: Client, message: Message):
+        '''
+        Message handler
+        '''
         for segment in self._pipelineSegments:
             try:
                 if await segment.CanHandle(self, MessageAdapter(message)):
@@ -198,10 +201,10 @@ class Sambot:
         self._startTimeUtc = datetime.now(timezone.utc)
         self.bot.run()
 
-'''
-Message adapter for pyrogram messages
-'''
 class MessageAdapter(Message):
+    '''
+    Message adapter for pyrogram messages
+    '''
 
     def __init__(self, msg: Message):
         self.__dict__ = msg.__dict__
@@ -234,11 +237,6 @@ class MessageAdapter(Message):
                 ids.append(mentioned_username)
         return ids
 
-'''
-This is the base class for pipeline segments
-Everytime a message is received, all messages will
-be passed 
-'''
 class BotPipelineSegmentBase(ABC):
 
     '''

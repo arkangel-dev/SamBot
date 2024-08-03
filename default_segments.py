@@ -1,26 +1,19 @@
 from pyrogram import Client
-from pyrogram.types import Message, InputMediaVideo, MessageEntity, ChatMember
-from pyrogram.enums import MessageEntityType
+from pyrogram.types import Message, InputMediaVideo
 from typing import Coroutine, List
 from datetime import datetime, timezone
 from sambot import Sambot, BotPipelineSegmentBase, MessageAdapter
 from chatgpt import ChatGpt
 
-import time
-import uuid
 import asyncio
 import re
-import os
 
-
-
-
-'''
-Segment to indicate if the bot is alive. It will send a message with uptime duration
-
-Activate by sending '.ping'
-'''
 class PingIndicator(BotPipelineSegmentBase):
+    '''
+    Segment to indicate if the bot is alive. It will send a message with uptime duration
+
+    Activate by sending '.ping'
+    '''
     async def CanHandle(self, sambot: Sambot, message: MessageAdapter):
         if not message.text: return False
         return message.text == '.ping' and message.from_user.is_self
@@ -31,12 +24,12 @@ class PingIndicator(BotPipelineSegmentBase):
         await asyncio.sleep(3)
         await bot.delete_messages(chat_id=message.chat.id, message_ids=[message.id])
 
-'''
-Segment to download TikTok and Youtube videos
-
-Activate it by replying the command '.dl' to a message that contains a URL to a video
-'''
 class TikTokDownloader(BotPipelineSegmentBase):
+    '''
+    Segment to download TikTok and Youtube videos
+
+    Activate it by replying the command '.dl' to a message that contains a URL to a video
+    '''
     url_pattern = re.compile(
         r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|'
         r'(?:%[0-9a-fA-F][0-9a-fA-F]))+'
@@ -74,7 +67,7 @@ class TikTokDownloader(BotPipelineSegmentBase):
                 text=issue,
                 reply_to_message_id=message.reply_to_top_message_id)
 
-    def download_tiktok_video(self, url, output_path='.') -> str:
+    def download_tiktok_video(self, url, output_path='ext-mount/cache/') -> str:
         import yt_dlp
         import hashlib
         import os
@@ -83,8 +76,8 @@ class TikTokDownloader(BotPipelineSegmentBase):
         md5_hash.update(url.encode('utf-8'))
         filename = md5_hash.hexdigest()
 
-        if os.path.exists(f'{filename}.mp4'):
-            return f'{filename}.mp4'
+        if os.path.exists(f'ext-mount/cache/{filename}.mp4'):
+            return f'ext-mount/cache/{filename}.mp4'
 
         ydl_opts = {
             'outtmpl': f'{output_path}/{filename}.%(ext)s',
@@ -97,14 +90,14 @@ class TikTokDownloader(BotPipelineSegmentBase):
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
-        return filename + ".mp4"
+        return f'{output_path}/{filename}.mp4'
     
-'''
-Segment to get a summary on what's going on. Requires the ChatGpt module to be setup
-
-Activate it by sending .backtrace or .backtrace with some specific question
-'''
 class BackTrace(BotPipelineSegmentBase):
+    '''
+    Segment to get a summary on what's going on. Requires the ChatGpt module to be setup
+
+    Activate it by sending .backtrace or .backtrace with some specific question
+    '''
     working: bool = False
     chatgpt: ChatGpt = None
 
@@ -138,12 +131,13 @@ class BackTrace(BotPipelineSegmentBase):
         await bot.edit_message_text(message.chat.id, message.id, result)
         self.working = False
 
-'''
-The most unless module so far. Wouldn't recommend that you use it
-
-Activate by sending .autopilot add and .autopilot
-'''
 class Autopilot(BotPipelineSegmentBase):
+    '''
+    The most unless module so far. Wouldn't recommend that you use it
+
+    Activate by sending .autopilot add and .autopilot
+    '''
+
     active = False
     gpt: ChatGpt = None
     allowedChats: List[int] = []
@@ -180,11 +174,10 @@ class Autopilot(BotPipelineSegmentBase):
             reply_to_message_id=message.reply_to_top_message_id
         )
         
-
-'''
-Mention everyone in the chat when @everyone is mentioned
-'''
 class MentionEveryone(BotPipelineSegmentBase):
+    '''
+    Mention everyone in the chat when @everyone is mentioned
+    '''
 
     async def CanHandle(self, sambot: Sambot, message: MessageAdapter):
         if not message.text: return
@@ -205,7 +198,7 @@ class MentionEveryone_Settings(BotPipelineSegmentBase):
     async def CanHandle(self, sambot: Sambot, message: MessageAdapter):
         if not message.text: return
         if not message.from_user.is_self: return
-        return ' '.join(message.text.split()[:2]) == ".config everyone_mention"
+        return ' '.join(message.text.split()[:2]) == ".config mentioneveryone"
     
     async def ProcessMessage(self, sambot: Sambot, bot: Client, message: MessageAdapter):
         parts = message.text.split()

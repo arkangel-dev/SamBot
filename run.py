@@ -4,8 +4,6 @@ import os
 
 load_dotenv()
 
-
-
 if __name__ == '__main__':
     api_id=int(os.getenv("PYROGRAM_APIID"))
     api_hash=os.getenv("PYROGRAM_APIHASH")
