@@ -76,8 +76,8 @@ class TikTokDownloader(BotPipelineSegmentBase):
         md5_hash.update(url.encode('utf-8'))
         filename = md5_hash.hexdigest()
 
-        if os.path.exists(f'ext-mount/cache/{filename}.mp4'):
-            return f'ext-mount/cache/{filename}.mp4'
+        if os.path.exists(f'{output_path}/{filename}.mp4'):
+            return f'{output_path}/{filename}.mp4'
 
         ydl_opts = {
             'outtmpl': f'{output_path}/{filename}.%(ext)s',
