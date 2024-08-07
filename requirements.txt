@@ -3,3 +3,4 @@ python-dotenv
 tgcrypto
 yt-dlp
 undetected-chromedriver
+Pillow

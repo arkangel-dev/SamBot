@@ -1,6 +1,7 @@
 from sambot import Sambot
 from dotenv import load_dotenv
 import os
+import memes
 
 load_dotenv()
 
@@ -15,4 +16,6 @@ if __name__ == '__main__':
         phone_number=phone_number
     )
     sammy.AddDefaultPipeLines()
+    memes.LoadIntoSambot(sammy)
+    
     sammy.Start()

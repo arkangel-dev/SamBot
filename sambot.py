@@ -236,6 +236,11 @@ class MessageAdapter(Message):
                 mentioned_username = self.text[entity.offset : entity.length]
                 ids.append(mentioned_username)
         return ids
+    
+    async def GetMessagePartsAndDeleteMessage(self) -> List[str]:
+        await self.delete()
+        if not self.text: return []
+        return self.text.split()
 
 class BotPipelineSegmentBase(ABC):
 
