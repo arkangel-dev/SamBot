@@ -133,7 +133,7 @@ class _memeGenerator:
 
         img = Image.open("static/one-does-not-simply.jpg")
         draw = ImageDraw.Draw(img)
-        font = ImageFont.truetype("impact.ttf", 42)
+        font = ImageFont.truetype("static/impact.ttf", 42)
         w = draw.textlength(text, font)
         _memeGenerator._drawTextWithOutline(draw,text, img.width/2 - w/2, 280, font)
         output = io.BytesIO()
@@ -143,7 +143,7 @@ class _memeGenerator:
     def HumanDisaster(text) -> BinaryIO:
         img = Image.open("static/human-disaster.png")
         draw = ImageDraw.Draw(img)
-        font = ImageFont.truetype("impact.ttf", 42)
+        font = ImageFont.truetype("static/impact.ttf", 42)
         w = draw.textlength(text, font)
         _memeGenerator._drawText(draw,text, img.width/2 - w/2, 570, font)
         output = io.BytesIO()
@@ -154,7 +154,7 @@ class _memeGenerator:
 
         img = Image.open("static/history-aliens.jpg")
         draw = ImageDraw.Draw(img)
-        font = ImageFont.truetype("impact.ttf", 50)
+        font = ImageFont.truetype("static/impact.ttf", 50)
         w = draw.textlength(text, font)
         _memeGenerator._drawTextWithOutline(draw,text, img.width/2 - w/2, 377, font)
         output = io.BytesIO()
@@ -164,7 +164,7 @@ class _memeGenerator:
     def ToyStoryMeme(text) -> BinaryIO:
         img = Image.open("static/woody-buzz.jpg")
         draw = ImageDraw.Draw(img)
-        font = ImageFont.truetype("impact.ttf", 45)
+        font = ImageFont.truetype("static/impact.ttf", 45)
         w = draw.textlength(text, font)
         w1 = draw.textlength(text + " Everywhere", font)
         _memeGenerator._drawTextWithOutline(draw,str(text).capitalize(), img.width/2 - w/2, 2, font)
