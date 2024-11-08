@@ -16,6 +16,6 @@ if __name__ == '__main__':
         phone_number=phone_number
     )
     sammy.AddDefaultPipeLines()
-    memes.LoadIntoSambot(sammy)
+    # memes.LoadIntoSambot(sammy)
     
     sammy.Start()

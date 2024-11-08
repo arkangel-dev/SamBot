@@ -1,5 +1,4 @@
 from pyrogram import Client
-from pyrogram.handlers import MessageHandler
 from pyrogram.types import Message
 from pyrogram.errors.exceptions import AuthKeyUnregistered, SessionPasswordNeeded
 from pyrogram.enums import MessageEntityType
@@ -15,10 +14,10 @@ import json
 from abc import ABC, abstractmethod
 
 
-'''
-Main Sambot class
-'''
 class Sambot:
+    '''
+    Main Sambot class
+    '''
     bot: Client
 
     _pipelineSegments: 'List[BotPipelineSegmentBase]' = []
@@ -33,6 +32,9 @@ class Sambot:
         self.logger.setLevel(logging.DEBUG)
         ch = logging.StreamHandler()
         ch.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        fi = logging.FileHandler("ext-mount/logs/logs.txt")
+        fi.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        self.logger.addHandler(fi)
         self.logger.addHandler(ch)
 
     '''
@@ -146,57 +148,43 @@ class Sambot:
         return newcontent
 
     
-    async def _handleMessage(self, client: Client, message: Message):
+    def AddHandlers(self):
         '''
-        Message handler
+        Add all the handlers
         '''
         for segment in self._pipelineSegments:
-            try:
-                if await segment.CanHandle(self, MessageAdapter(message)):
-                    self.logger.info(f'Segment accepted message {type(segment).__name__}')
-                    await segment.ProcessMessage(self, message=MessageAdapter(message), bot=client)
-            except Exception as ex:
-                await client.send_message(
-                    chat_id=message.chat.id,
-                    text=f'Whoops. Something went wrong in the {type(segment).__name__} pipeline segment',
-                    reply_to_message_id=message.reply_to_top_message_id)
-                self.logger.error(f'Error in {type(segment).__name__} segment :\n{traceback.format_exc()}')
+            segment.RegisterSegment(self, self.bot)
 
-    '''
-    Add a pipeline segment
-    '''
+
     def AddPipelineSegment(self, segment):
+        '''
+        Add a pipeline segment
+        '''
         self.logger.info(f'Registered segment ({type(segment).__name__})')
         if not isinstance(segment, BotPipelineSegmentBase):
             raise PipelineNotImplementedException(f'The object {type(segment).__name__} does not implement the BotPipelineSegmentBase interface')
         self._pipelineSegments.append(segment)
 
-    '''
-    Add default segments
-    '''
+    
     def AddDefaultPipeLines(self):
-        from default_segments import PingIndicator, TikTokDownloader, BackTrace, Autopilot, MentionEveryone,MentionEveryone_Settings
-        # from chatgpt import ChatGpt
-
-        # self.chatgpt= ChatGpt(
-        #     username=os.getenv('CHATGPT_USERNAME'),
-        #     password=os.getenv('CHATGPT_PASSWORD')
-        # )
-        # self.chatgpt.Login()
+        '''
+        Add default segments
+        '''
+        from default_segments import PingIndicator, TikTokDownloader, MentionEveryone,TerminateSegment
         self.AddPipelineSegment(PingIndicator())
         self.AddPipelineSegment(TikTokDownloader())
         self.AddPipelineSegment(MentionEveryone())
-        self.AddPipelineSegment(MentionEveryone_Settings())
-        # self.AddPipelineSegment(BackTrace(self.chatgpt))
-        # self.AddPipelineSegment(Autopilot(self.chatgpt))
+        self.AddPipelineSegment(TerminateSegment())
+        self.AddHandlers()
         
 
-    '''
-    Start the bot
-    '''
     def Start(self) -> None:
-        handler = MessageHandler(self._handleMessage, filters=None)
-        self.bot.add_handler(handler)
+        '''
+        Start the bot
+        '''
+        # messageHandler = MessageHandler(self._handleMessage, filters=None)
+        # reactionHandler = 
+        # self.bot.add_handler(messageHandler)
         self.logger.info("Ready. Awaiting messages!")
         self._startTimeUtc = datetime.now(timezone.utc)
         self.bot.run()
@@ -242,24 +230,11 @@ class MessageAdapter(Message):
         if not self.text: return []
         return self.text.split()
 
-class BotPipelineSegmentBase(ABC):
-
-    '''
-    When a message is recieved, it will be passed to this
-    method, if the message can be processed, this method should
-    return true
-    '''
-    @abstractmethod
-    async def CanHandle(self, sambot:Sambot, message:MessageAdapter):
-        return False
-
-    '''
-    Process the message. 
-
-    Returns: A flag that indicate if the pipeline should terminate
-    '''
-    @abstractmethod
-    async def ProcessMessage(self, sambot:Sambot, bot:Client, message:MessageAdapter):
+class BotPipelineSegmentBase(ABC):    
+    def RegisterSegment(self, sambot:Sambot, bot: Client):
+        '''
+        Register a this segment
+        '''
         pass
 
     
