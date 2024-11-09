@@ -1,14 +1,13 @@
 from pyrogram import Client
 from pyrogram.types import Message, InputMediaVideo
 from pyrogram.enums import ParseMode
-from typing import Coroutine, List
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sambot import Sambot, BotPipelineSegmentBase, MessageAdapter
-from chatgpt import ChatGpt
-from pyrogram.handlers import MessageHandler, MessageReactionUpdatedHandler
-
+from pyrogram.handlers import MessageHandler
+from wordcloud import WordCloud
 import asyncio
 import re
+from io import BytesIO
 import random
 
 class PingIndicator(BotPipelineSegmentBase):
@@ -156,7 +155,7 @@ class TikTokDownloader(BotPipelineSegmentBase):
         handler = MessageHandler(self.process_message)
         bot.add_handler(handler, group=1002)
         # return super().RegisterSegment(sambot, bot)
-      
+
 class MentionEveryone(BotPipelineSegmentBase):
     '''
     Mention everyone in the chat when @everyone is mentioned
@@ -239,5 +238,85 @@ class TerminateSegment(BotPipelineSegmentBase):
         
     def RegisterSegment(self, sambot: Sambot, bot: Client):
         self.sambot = sambot
-        handler = MessageHandler(self.process_message, 1004)
-        bot.add_handler(handler)
+        handler = MessageHandler(self.process_message)
+        bot.add_handler(handler, 1004)
+
+class ReactionCounter(BotPipelineSegmentBase):
+    def can_handle(self, message: MessageAdapter):
+        if not message.text: return
+        return message.text == ".leaderboard" and message.from_user.is_self
+    
+    async def process_message(self, bot: Client, message: MessageAdapter):
+        if (not self.can_handle(message)): return
+        start_date = datetime.today() - timedelta(days=1)
+        reactions_dict = dict()
+        messages_count_dict = dict()
+        # Fetch messages from the chat
+        async for msg in bot.get_chat_history(message.chat.id):
+            # Check if message date is within the last n days
+            if msg.date >= start_date:
+                key = msg.from_user.first_name
+                
+                if (msg.text):
+                    messages_count_dict[key] = messages_count_dict.get(key, 0) + len(msg.text.split(' '))
+                else:
+                    messages_count_dict[key] = messages_count_dict.get(key, 0) + 1
+                
+                if (msg.reactions is None): continue
+                count = sum(r.count for r in msg.reactions.reactions)
+                reactions_dict[key] = reactions_dict.get(key, 0) + count 
+                
+            else:
+                break  # Stop if messages are older than start_date
+        
+        reactions_dict = {k: v for k, v in sorted(reactions_dict.items(), key=lambda item: item[1],reverse=True)}
+        messages_count_dict = {k: v for k, v in sorted(messages_count_dict.items(), key=lambda item: item[1],reverse=True)}
+        
+        reply_message = "**Reactions Leaderboard ✨**\n"
+        reply_message += '\n'.join(['- {} : {}'.format(x, reactions_dict[x]) for x in reactions_dict])
+        reply_message += "\n\n**Yappin Leaderboard 🗣️**\n"
+        reply_message += '\n'.join(['- {} : {}'.format(x, messages_count_dict[x]) for x in messages_count_dict])
+        await message.reply_text(reply_message)
+        
+        
+    def RegisterSegment(self, sambot: Sambot, bot: Client):
+        self.sambot = sambot
+        handler = MessageHandler(self.process_message)
+        bot.add_handler(handler, 1005)
+        
+class WordCloudGenerator(BotPipelineSegmentBase):
+    def can_handle(self, message: MessageAdapter):
+        if not message.text: return
+        return message.text == ".wordcloud" and message.from_user.is_self
+    
+    async def process_message(self, bot: Client, message: MessageAdapter):
+        if (not self.can_handle(message)): return
+        start_date = datetime.today() - timedelta(days=1)
+        messages_list = []
+        # Fetch messages from the chat
+        async for msg in bot.get_chat_history(message.chat.id):
+            # Check if message date is within the last n days
+            if msg.date >= start_date:
+                if (not msg.text): continue
+                messages_list.append(msg.text)
+            else:
+                break  # Stop if messages are older than start_date
+        
+        joined = ' '.join(messages_list)
+        wordcloud = WordCloud(width=2000,height=2000).generate(joined).to_image()
+        
+        binary_io = BytesIO()
+        
+        wordcloud.save(binary_io, format="PNG")  # Save the image to the BytesIO object
+        binary_io.seek(0)
+        await bot.send_photo(
+                chat_id=message.chat.id,
+                reply_to_message_id=message.reply_to_message_id or message.reply_to_top_message_id,
+                photo=binary_io
+            )
+        
+        
+    def RegisterSegment(self, sambot: Sambot, bot: Client):
+        self.sambot = sambot
+        handler = MessageHandler(self.process_message)
+        bot.add_handler(handler, 1006)

@@ -170,11 +170,13 @@ class Sambot:
         '''
         Add default segments
         '''
-        from default_segments import PingIndicator, TikTokDownloader, MentionEveryone,TerminateSegment
-        self.AddPipelineSegment(PingIndicator())
+        from default_segments import PingIndicator, TikTokDownloader, MentionEveryone,TerminateSegment, ReactionCounter, WordCloudGenerator
+        # self.AddPipelineSegment(PingIndicator())
         self.AddPipelineSegment(TikTokDownloader())
         self.AddPipelineSegment(MentionEveryone())
         self.AddPipelineSegment(TerminateSegment())
+        self.AddPipelineSegment(ReactionCounter())
+        self.AddPipelineSegment(WordCloudGenerator())
         self.AddHandlers()
         
 
