@@ -4,3 +4,4 @@ tgcrypto
 yt-dlp
 undetected-chromedriver
 Pillow
+wordcloud==1.9.3

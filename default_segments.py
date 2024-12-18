@@ -58,10 +58,37 @@ class TikTokDownloader(BotPipelineSegmentBase):
         "Im gonna need a link"
     ]
     
-    def can_handle(self, message: Message):
+    def can_download(self, message: Message):
         if not message.text: return False
         return message.text == '.dl'
     
+    def can_ban(self, message: Message):
+        if not message.reply_to_message: return False
+        if not message.from_user.is_self: return False
+        return message.text == '.ban_dl'
+    
+    def can_unban(self, message: Message):
+        if not message.reply_to_message: return False
+        if not message.from_user.is_self: return False
+        return message.text == '.unban_dl'
+    
+    async def ban_user(self, message: Message):
+        if message.reply_to_message.from_user.id in self.sambot.configuration["tiktok_dl"]["banned_users"]:
+            await message.edit_text("This guy is already banned")
+            return
+        self.sambot.configuration["tiktok_dl"]["banned_users"].append(message.reply_to_message.from_user.id)
+        self.sambot.SaveConfiguration()
+        await message.edit_text("This fool has been banned!")
+        
+    async def unban_user(self, message: Message):
+        if not message.reply_to_message.from_user.id in self.sambot.configuration["tiktok_dl"]["banned_users"]:
+            await message.edit_text("This guy was not banned")
+            return
+        self.sambot.configuration["tiktok_dl"]["banned_users"].remove(message.reply_to_message.from_user.id)
+        self.sambot.SaveConfiguration()
+        await message.edit_text("This fool has been unbanned!")
+        
+        
     def update_and_reimport_yt_dlp(self):
         import subprocess
         import importlib
@@ -81,7 +108,22 @@ class TikTokDownloader(BotPipelineSegmentBase):
         
     async def process_message(self, bot: Client, message: Message):
         message = MessageAdapter(message)
-        if (not self.can_handle(message)): return
+        
+        if not message.text: return False # Check if its a text message
+        
+        if self.can_ban(message): # Check if its a message to ban users
+            await self.ban_user(message)
+            return
+        
+        if self.can_unban(message): # Check if its a message to unban users
+            await self.unban_user(message)
+            return
+        
+        if not self.can_download(message): return # If its not a module related message, ignore it
+        
+        if message.from_user.id in self.sambot.configuration["tiktok_dl"]["banned_users"]:
+            await message.react("🖕")
+            return
         
         if not message.IsRealReply():
             await self.reply_with_issue(bot, message, random.choice(self.invalid_operation_messages))
@@ -198,6 +240,7 @@ class MentionEveryone(BotPipelineSegmentBase):
     
     async def process_message(self, bot: Client, message: MessageAdapter):
         message = MessageAdapter(message)
+        if not message.text: return
         if (not await self.can_handle(message)): 
             if self.can_handle_config(message):
                 await self.handle_config_instruction(bot, message)
@@ -255,11 +298,15 @@ class ReactionCounter(BotPipelineSegmentBase):
         async for msg in bot.get_chat_history(message.chat.id):
             # Check if message date is within the last n days
             if msg.date >= start_date:
+                if not msg.from_user: continue
                 key = msg.from_user.first_name
                 
                 if (msg.text):
+                    # if its a text message, increment the dictionary.key with the number
+                    # of words (split string with white space)
                     messages_count_dict[key] = messages_count_dict.get(key, 0) + len(msg.text.split(' '))
                 else:
+                    # otherwise just increment by one
                     messages_count_dict[key] = messages_count_dict.get(key, 0) + 1
                 
                 if (msg.reactions is None): continue
@@ -320,3 +367,6 @@ class WordCloudGenerator(BotPipelineSegmentBase):
         self.sambot = sambot
         handler = MessageHandler(self.process_message)
         bot.add_handler(handler, 1006)
+        
+class WhoIsNoora(BotPipelineSegmentBase):
+    pass
