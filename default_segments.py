@@ -1,5 +1,5 @@
 from pyrogram import Client
-from pyrogram.types import Message, InputMediaVideo
+from pyrogram.types import Message, InputMediaVideo, InlineKeyboardButton,InlineKeyboardMarkup
 from pyrogram.enums import ParseMode
 from datetime import datetime, timezone, timedelta
 from sambot import Sambot, BotPipelineSegmentBase, MessageAdapter
@@ -9,7 +9,9 @@ import asyncio
 import re
 from io import BytesIO
 import random
-
+from PyL360 import L360Client
+import os
+import time
 class PingIndicator(BotPipelineSegmentBase):
     '''
     Segment to indicate if the bot is alive. It will send a message with uptime duration
@@ -121,6 +123,8 @@ class TikTokDownloader(BotPipelineSegmentBase):
         
         if not self.can_download(message): return # If its not a module related message, ignore it
         
+        # If the fool is banned, react to the origin
+        # message with the bird
         if message.from_user.id in self.sambot.configuration["tiktok_dl"]["banned_users"]:
             await message.react("🖕")
             return
@@ -362,7 +366,6 @@ class WordCloudGenerator(BotPipelineSegmentBase):
                 photo=binary_io
             )
         
-        
     def RegisterSegment(self, sambot: Sambot, bot: Client):
         self.sambot = sambot
         handler = MessageHandler(self.process_message)
@@ -370,3 +373,107 @@ class WordCloudGenerator(BotPipelineSegmentBase):
         
 class WhoIsNoora(BotPipelineSegmentBase):
     pass
+
+class Life360Integration(BotPipelineSegmentBase):
+    
+    def __init__(self):
+        self.l360_client = L360Client(
+            username=os.getenv("Life360_Username"),
+            password=os.getenv("Life360_Password"),
+        )
+        self.l360_client.Authenticate()
+    
+    async def process_message(self, bot: Client, message: MessageAdapter):
+        message = MessageAdapter(message)
+        if not message.text: return
+        if message.text.split()[0] == '.whereis': await self.HandleQuery(bot, message)
+        if not message.from_user.is_self: return
+        if ' '.join(message.text.split()[:2]) == ".config whereis": await self.HandleConfiguration(bot, message)
+        
+    async def HandleQuery(self, bot: Client, message: MessageAdapter):
+        # if not message.IsRealReply():
+        #     await message.reply_text("You need to reply to a user for this to work...")
+        #     return
+        # user_id = str(message.reply_to_message.from_user.id)
+        
+        mentioned_users = await message.GetMentionedUsersIds()
+        if len(mentioned_users) != 1:
+            await message.reply_text("You need to mention one user like `.whereis @sammy`", parse_mode=ParseMode.MARKDOWN)
+            return
+        user_id = str(mentioned_users[0])
+        
+        assignments = self.sambot.configuration["L360"]["Assignments"]
+
+        if not user_id in assignments:
+            await message.reply_text("`No L360 profile is assigned to this user`", parse_mode=ParseMode.MARKDOWN)
+            return
+        
+        
+        l360_entry = assignments[user_id].split('/')
+        l360_user = l360_entry[1]
+        l360_circle = l360_entry[0]
+        
+        reply_msg = await message.reply_text("`Asking Life360...`", parse_mode=ParseMode.MARKDOWN)
+        available_circles = self.l360_client.GetCircles()
+        circle = next((x for x in available_circles.circles if x.name == l360_circle), None)
+        
+        if not circle:
+            await message.reply_text("The circle `{}` was not found on my Life360 account".format(l360_circle), parse_mode=ParseMode.MARKDOWN)
+            return
+        
+        circle_members_list = circle.GetDetails().members
+        circle_member = next((x for x in circle_members_list if x.firstName == l360_user), None)
+        
+        if not circle_member:
+            await message.reply_text("The user `{}` was not found in `{}`".format(l360_user, l360_circle), parse_mode=ParseMode.MARKDOWN)
+            return
+        
+        await asyncio.sleep(1)
+        await reply_msg.delete()
+        
+        summary_data = "{} is at {}".format(
+            circle_member.firstName,
+            circle_member.location.name or circle_member.location.shortAddress
+        )
+        summary_msg = await message.reply_text(summary_data)
+        await summary_msg.reply_location(
+            latitude=float(circle_member.location.latitude),
+            longitude=float(circle_member.location.longitude),
+        )
+        
+    async def HandleConfiguration(self, bot: Client, message: MessageAdapter):
+        message_parts = message.text.split()
+        if len(message_parts) < 3:
+            await message.edit_text("`Invalid command\nsetuser - Link a user to a L360 user`", parse_mode=ParseMode.MARKDOWN)
+            return
+        
+        match message_parts[2]:
+            case "setuser":
+                if not message.IsRealReply(): 
+                    await message.edit_text("`You need to reply to a user for this command`", parse_mode=ParseMode.MARKDOWN)
+                    return
+                l360User = ' '.join(message_parts[3:])
+                self.sambot.configuration["L360"]["Assignments"][str(message.reply_to_message.from_user.id)] = l360User
+                self.sambot.SaveConfiguration()
+                await message.react("👍")
+                
+            case "unsetuser":
+                if not message.IsRealReply(): 
+                    await message.reply_text("`You need to reply to a user for this command`", parse_mode=ParseMode.MARKDOWN)
+                    return
+                
+                if not str(message.reply_to_message.from_user.id) in self.sambot.configuration["L360"]["Assignments"]:
+                    await message.reply_text("`This user is not configured`", parse_mode=ParseMode.MARKDOWN)
+                    return
+                
+                del self.sambot.configuration["L360"]["Assignments"][str(message.reply_to_message.from_user.id)]
+                self.sambot.SaveConfiguration()
+                await message.react("👍")
+            
+            case default:
+                await message.edit_text("`Invalid command`", parse_mode=ParseMode.MARKDOWN)
+    
+    def RegisterSegment(self, sambot: Sambot, bot: Client):
+        self.sambot = sambot
+        handler = MessageHandler(self.process_message)
+        bot.add_handler(handler, 1007)

@@ -11,7 +11,14 @@ Write the following to `mount/settings.json`
 {
     "mentioneveryone": {
         "allowed_chats": []
+    },
+    "tiktok_dl": {
+        "banned_users": []
+    },
+    "L360": {
+        "Assignments": {}
     }
+}
 }
 ```
 
@@ -46,6 +53,11 @@ When the application starts up for the first time it will send an OTP code to ei
 - `MentionEveryone`: This segment is used to mention everyone in the chat. Mention @everyone within a chat to mention everyone in the chat. To avoid this being triggered in other chats, a whitelist is used. To add a chat send the command `.config mentioneveryone add` to a chat and now that chat will support mentioning everyone
 - `BackTrace`: This segment fetches the last 100 messages sent in a chat and has ChatGPT summarize it and send it back in the chat. Can be triggered by sending `.backtrace` in a chat
 - `Autopilot`: Not gonna even bother with this
+- `TerminateSegment`: This will terminate the bot when `.terminate` is sent the by host
+- `WordCloudGenerator`: This will generate a wordcloud from the last 24 hours
+- `ReactionCounter`: This will generate a leaderboard with group chat members who yapped the most and who got the most number of reactions
+- `WhoIsNoora`: Using this segment, we might finally uncover the mystery of who Noora is
+- `Life360Integration`: Using this you can integrate Life360 and get users location by sending `.whereis @username` For this to work, you need the environment variables `Life360_Username` and `Life360_Password` set. You are going to need to also link each user to their Life360 account by replying to a users message `.config whereis setuser {CircleName}/{Username}` where `CircleName` is the circle the user is in and the `Username` is the firstname of the user
 
 
 

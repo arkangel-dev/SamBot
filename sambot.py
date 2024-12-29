@@ -170,13 +170,14 @@ class Sambot:
         '''
         Add default segments
         '''
-        from default_segments import PingIndicator, TikTokDownloader, MentionEveryone,TerminateSegment, ReactionCounter, WordCloudGenerator
-        self.AddPipelineSegment(PingIndicator())
-        self.AddPipelineSegment(TikTokDownloader())
-        self.AddPipelineSegment(MentionEveryone())
-        self.AddPipelineSegment(TerminateSegment())
-        self.AddPipelineSegment(ReactionCounter())
-        self.AddPipelineSegment(WordCloudGenerator())
+        import default_segments as ds
+        self.AddPipelineSegment(ds.PingIndicator())
+        self.AddPipelineSegment(ds.TikTokDownloader())
+        self.AddPipelineSegment(ds.MentionEveryone())
+        self.AddPipelineSegment(ds.TerminateSegment())
+        self.AddPipelineSegment(ds.ReactionCounter())
+        self.AddPipelineSegment(ds.WordCloudGenerator())
+        self.AddPipelineSegment(ds.Life360Integration())
         self.AddHandlers()
         
 
@@ -223,8 +224,23 @@ class MessageAdapter(Message):
                 continue
             
             if (entity.type == MessageEntityType.MENTION):
-                mentioned_username = self.text[entity.offset : entity.length]
+                mentioned_username = self.text[entity.offset : entity.offset + entity.length]
                 ids.append(mentioned_username)
+        return ids
+    
+    async def GetMentionedUsersIds(self):
+        if not self.entities: return []
+        ids = []
+        for entity in self.entities:
+            if (entity.type == MessageEntityType.TEXT_MENTION):
+                ids.append(entity.user.id)
+                continue
+            
+            if (entity.type == MessageEntityType.MENTION):
+                mentioned_username = self.text[entity.offset : entity.offset + entity.length]
+                user = await self._client.get_users(mentioned_username)
+                ids.append(user.id)
+                continue
         return ids
     
     async def GetMessagePartsAndDeleteMessage(self) -> List[str]:
