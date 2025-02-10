@@ -48,9 +48,9 @@ class TikTokDownloader(BotPipelineSegmentBase):
     )
     
     issue_messages = [
-        "One second"
-        "Something went wrong. Let me try again...",
-        "Third times the charm! (Updating YT-DLP)"
+        "Hold on...",
+        "Something went wrong. Trying again",
+        "Third times the charm! (Updating dependencies...)"
     ]
     
     invalid_operation_messages = [
@@ -155,8 +155,9 @@ class TikTokDownloader(BotPipelineSegmentBase):
                 if (try_count == 2):
                     self.update_and_reimport_yt_dlp()
                 
-                if (try_count < 3):
+                if (try_count <= 2):
                     await status_msg.edit_text(self.issue_messages[try_count])
+                    await asyncio.sleep(3)
                 else:
                     await status_msg.edit_text("Yeah no, I give up, this can't be downloaded. Either my IP is ratelimited or this link doesn't have a downloadable video.")
                     break
@@ -281,6 +282,7 @@ class TerminateSegment(BotPipelineSegmentBase):
             parse_mode=ParseMode.MARKDOWN
         )
         await asyncio.create_task(bot.stop(False))
+        open('terminate-lockfile', 'a').close()
         exit()
         
     def RegisterSegment(self, sambot: Sambot, bot: Client):
@@ -391,11 +393,8 @@ class Life360Integration(BotPipelineSegmentBase):
         if ' '.join(message.text.split()[:2]) == ".config whereis": await self.HandleConfiguration(bot, message)
         
     async def HandleQuery(self, bot: Client, message: MessageAdapter):
-        # if not message.IsRealReply():
-        #     await message.reply_text("You need to reply to a user for this to work...")
-        #     return
-        # user_id = str(message.reply_to_message.from_user.id)
-        
+        if message.chat.id not in self.sambot.configuration["L360"]["AllowedChats"]:
+            return
         mentioned_users = await message.GetMentionedUsersIds()
         if len(mentioned_users) != 1:
             await message.reply_text("You need to mention one user like `.whereis @sammy`", parse_mode=ParseMode.MARKDOWN)
@@ -470,6 +469,18 @@ class Life360Integration(BotPipelineSegmentBase):
                 self.sambot.SaveConfiguration()
                 await message.react("👍")
             
+            case "allow":
+                self.sambot.configuration["L360"]["AllowedChats"].append(message.chat.id)
+                self.sambot.SaveConfiguration()
+                await message.react("👍")
+                pass
+            
+            case "disallow":
+                self.sambot.configuration["L360"]["AllowedChats"].remove(message.chat.id)
+                self.sambot.SaveConfiguration()
+                await message.react("👍")
+                pass
+            
             case default:
                 await message.edit_text("`Invalid command`", parse_mode=ParseMode.MARKDOWN)
     
@@ -477,3 +488,6 @@ class Life360Integration(BotPipelineSegmentBase):
         self.sambot = sambot
         handler = MessageHandler(self.process_message)
         bot.add_handler(handler, 1007)
+
+class RemindMeModule(BotPipelineSegmentBase):
+    pass

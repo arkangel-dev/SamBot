@@ -12,3 +12,4 @@ settings.json
 ext-mount
 .vscode
 l360.token
+terminate-lockfile

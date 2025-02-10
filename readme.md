@@ -16,9 +16,9 @@ Write the following to `mount/settings.json`
         "banned_users": []
     },
     "L360": {
-        "Assignments": {}
+        "Assignments": {},
+        "AllowedChats": []
     }
-}
 }
 ```
 
