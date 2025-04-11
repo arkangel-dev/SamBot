@@ -53,6 +53,10 @@ class TikTokDownloader(BotPipelineSegmentBase):
     Activate it by replying the command '.dl' to a message that contains a URL to a video
     '''
 
+    def __init__(self):
+        self.logger = logging.getLogger('TikTokDownloader')
+        setup_logger(self.logger)
+
     url_pattern = re.compile(
         r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|'
         r'(?:%[0-9a-fA-F][0-9a-fA-F]))+'
@@ -121,11 +125,11 @@ class TikTokDownloader(BotPipelineSegmentBase):
             # Import or reload yt-dlp to get the latest version
             import yt_dlp
             importlib.reload(yt_dlp)
-            print("yt-dlp has been updated and re-imported successfully.")
+            self.logger.info("yt-dlp has been updated and re-imported successfully.")
 
             return yt_dlp  # Return the module if needed
         except Exception as e:
-            print(f"An error occurred: {e}")
+            self.logger.fatal(f"An error occurred: {e}")
 
     async def process_message(self, bot: Client, message: Message):
         message = MessageAdapter(message)
@@ -182,6 +186,7 @@ class TikTokDownloader(BotPipelineSegmentBase):
                     await asyncio.sleep(3)
                 else:
                     await status_msg.edit_text("Yeah no, I give up, this can't be downloaded. I have failed. I failed and let down my entire clan")
+                    self.logger.fatal("Download failed for {}: {}".format(url_match.string, e))
                     break
                 try_count += 1
 
