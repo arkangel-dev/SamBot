@@ -10,6 +10,7 @@ import time
 import os
 import traceback
 import json
+from utils import setup_logger
 
 from abc import ABC, abstractmethod
 
@@ -29,13 +30,7 @@ class Sambot:
     '''
     def _setupLogging(self):
         self.logger: logging.Logger = logging.getLogger('sambot')
-        self.logger.setLevel(logging.DEBUG)
-        ch = logging.StreamHandler()
-        ch.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-        fi = logging.FileHandler("ext-mount/logs/logs.txt")
-        fi.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-        self.logger.addHandler(fi)
-        self.logger.addHandler(ch)
+        setup_logger(self.logger)
 
     '''
     Constructor
@@ -178,9 +173,9 @@ class Sambot:
         self.AddPipelineSegment(ds.ReactionCounter())
         self.AddPipelineSegment(ds.WordCloudGenerator())
         self.AddPipelineSegment(ds.Life360Integration())
+        self.AddPipelineSegment(ds.RemindMeLater())
         self.AddHandlers()
         
-
     def Start(self) -> None:
         '''
         Start the bot
