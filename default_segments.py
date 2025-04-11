@@ -1,5 +1,5 @@
 from pyrogram import Client
-from pyrogram.types import Message, InputMediaVideo, InlineKeyboardButton,InlineKeyboardMarkup
+from pyrogram.types import Message, InputMediaVideo
 from pyrogram.enums import ParseMode
 from datetime import datetime, timezone, timedelta
 from sambot import Sambot, BotPipelineSegmentBase, MessageAdapter
@@ -11,7 +11,6 @@ from io import BytesIO
 import random
 from PyL360 import L360Client
 import os
-import time
 class PingIndicator(BotPipelineSegmentBase):
     '''
     Segment to indicate if the bot is alive. It will send a message with uptime duration
@@ -50,7 +49,8 @@ class TikTokDownloader(BotPipelineSegmentBase):
     issue_messages = [
         "One second"
         "Something went wrong. Let me try again...",
-        "Third times the charm! (Updating YT-DLP)"
+        "Third times the charm! (Updating YT-DLP)",
+        "Uhhh... just one second"
     ]
     
     invalid_operation_messages = [
@@ -143,7 +143,7 @@ class TikTokDownloader(BotPipelineSegmentBase):
         
         while (True):
             try:
-                file = self.download_tiktok_video(url_match.string)
+                file = self.download_tiktok_video(url_match.string, reloadlib=try_count > 2)
                 await bot.send_media_group(
                     media=[InputMediaVideo(file, caption="Here you go!")],
                     chat_id=message.chat.id, 
@@ -151,14 +151,14 @@ class TikTokDownloader(BotPipelineSegmentBase):
                 if status_msg:
                     await bot.delete_messages(status_msg.chat.id, message_ids=[status_msg.id])
                 return
-            except:
+            except Exception as e:
                 if (try_count == 2):
                     self.update_and_reimport_yt_dlp()
                 
                 if (try_count < 3):
                     await status_msg.edit_text(self.issue_messages[try_count])
                 else:
-                    await status_msg.edit_text("Yeah no, I give up, this can't be downloaded. Either my IP is ratelimited or this link doesn't have a downloadable video.")
+                    await status_msg.edit_text("Yeah no, I give up, this can't be downloaded. I have failed. I failed and let down my entire clan")
                     break
                 try_count += 1
     
@@ -171,11 +171,13 @@ class TikTokDownloader(BotPipelineSegmentBase):
                 text=issue,
                 reply_to_message_id=message.reply_to_top_message_id)
 
-    def download_tiktok_video(self, url, output_path='ext-mount/cache/') -> str:
+    def download_tiktok_video(self, url, output_path='ext-mount/cache/', reloadlib:bool = False) -> str:
         import yt_dlp
         import hashlib
         import os
+        import importlib
 
+        if reloadlib: importlib.reload(yt_dlp)
         md5_hash = hashlib.md5()
         md5_hash.update(url.encode('utf-8'))
         filename = md5_hash.hexdigest()
@@ -477,3 +479,4 @@ class Life360Integration(BotPipelineSegmentBase):
         self.sambot = sambot
         handler = MessageHandler(self.process_message)
         bot.add_handler(handler, 1007)
+
