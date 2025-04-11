@@ -5,8 +5,6 @@ from pyrogram.enums import ParseMode
 from datetime import datetime, timezone, timedelta
 from sambot import Sambot, BotPipelineSegmentBase, MessageAdapter
 from pyrogram.handlers import MessageHandler
-import selenium.common.exceptions
-import sqlalchemy.orm
 from wordcloud import WordCloud
 import asyncio
 import re
@@ -96,19 +94,19 @@ class TikTokDownloader(BotPipelineSegmentBase):
         return message.text == '.unban_dl'
 
     async def ban_user(self, message: Message):
-        if message.reply_to_message.from_user.id in self.sambot.configuration["tiktok_dl"]["banned_users"]:
+        if message.reply_to_message.from_user.id in self.sambot.configuration["TikTokDl"]["BannedUsers"]:
             await message.edit_text("This guy is already banned")
             return
-        self.sambot.configuration["tiktok_dl"]["banned_users"].append(
+        self.sambot.configuration["TikTokDl"]["BannedUsers"].append(
             message.reply_to_message.from_user.id)
         self.sambot.SaveConfiguration()
         await message.edit_text("This fool has been banned!")
 
     async def unban_user(self, message: Message):
-        if not message.reply_to_message.from_user.id in self.sambot.configuration["tiktok_dl"]["banned_users"]:
+        if not message.reply_to_message.from_user.id in self.sambot.configuration["TikTokDl"]["BannedUsers"]:
             await message.edit_text("This guy was not banned")
             return
-        self.sambot.configuration["tiktok_dl"]["banned_users"].remove(
+        self.sambot.configuration["TikTokDl"]["BannedUsers"].remove(
             message.reply_to_message.from_user.id)
         self.sambot.SaveConfiguration()
         await message.edit_text("This fool has been unbanned!")
@@ -150,7 +148,7 @@ class TikTokDownloader(BotPipelineSegmentBase):
 
         # If the fool is banned, react to the origin
         # message with the bird
-        if message.from_user.id in self.sambot.configuration["tiktok_dl"]["banned_users"]:
+        if message.from_user.id in self.sambot.configuration["TikTokDl"]["BannedUsers"]:
             await message.react("🖕")
             return
 
@@ -242,7 +240,7 @@ class MentionEveryone(BotPipelineSegmentBase):
     async def can_handle(self, message: MessageAdapter):
         if not message.text:
             return False
-        if not message.chat.id in self.sambot.configuration["mentioneveryone"]["allowed_chats"]:
+        if not message.chat.id in self.sambot.configuration["mentioneveryone"]["AllowedChats"]:
             return False
         return '@everyone' in (await message.GetMentionedUsers())
 
@@ -258,10 +256,10 @@ class MentionEveryone(BotPipelineSegmentBase):
             parts.append('')
 
         if (parts[2] == 'add'):
-            self.sambot.configuration['mentioneveryone']['allowed_chats'].append(
+            self.sambot.configuration['MentionEveryone']['AllowedChats'].append(
                 message.chat.id)
         elif (parts[2] == 'remove'):
-            self.sambot.configuration['mentioneveryone']['allowed_chats'].append(
+            self.sambot.configuration['MentionEveryone']['AllowedChats'].append(
                 message.chat.id)
         else:
             await bot.send_message(
@@ -654,7 +652,7 @@ class RemindMeLater(BotPipelineSegmentBase):
         session.commit()
 
     async def check_if_reminders_allowed(self, message: MessageAdapter) -> bool:
-        if not message.chat.id in self.sambot.configuration["remindme"]["allowed_chats"]:
+        if not message.chat.id in self.sambot.configuration["RemindMe"]["AllowedChats"]:
             return False
         return True
 
@@ -666,14 +664,14 @@ class RemindMeLater(BotPipelineSegmentBase):
 
         match message_parts[2]:
             case "allow":
-                self.sambot.configuration["remindme"]["allowed_chats"].append(
+                self.sambot.configuration["RemindMe"]["AllowedChats"].append(
                     message.chat.id)
                 self.sambot.SaveConfiguration()
                 await message.react("👍")
                 pass
 
             case "disallow":
-                self.sambot.configuration["remindme"]["allowed_chats"].remove(
+                self.sambot.configuration["RemindMe"]["AllowedChat"].remove(
                     message.chat.id)
                 self.sambot.SaveConfiguration()
                 await message.react("👍")
