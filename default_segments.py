@@ -1,3 +1,4 @@
+import sqlalchemy
 from typing import List
 import memes
 from pyrogram import Client
@@ -18,6 +19,8 @@ import time
 import logging
 from utils import setup_logger
 from pyrogram.types import ChatMember
+
+
 class PingIndicator(BotPipelineSegmentBase):
     '''
     Segment to indicate if the bot is alive. It will send a message with uptime duration
@@ -125,7 +128,8 @@ class TikTokDownloader(BotPipelineSegmentBase):
             # Import or reload yt-dlp to get the latest version
             import yt_dlp
             importlib.reload(yt_dlp)
-            self.logger.info("yt-dlp has been updated and re-imported successfully.")
+            self.logger.info(
+                "yt-dlp has been updated and re-imported successfully.")
 
             return yt_dlp  # Return the module if needed
         except Exception as e:
@@ -186,7 +190,8 @@ class TikTokDownloader(BotPipelineSegmentBase):
                     await asyncio.sleep(3)
                 else:
                     await status_msg.edit_text("Yeah no, I give up, this can't be downloaded. I have failed. I failed and let down my entire clan")
-                    self.logger.fatal("Download failed for {}: {}".format(url_match.string, e))
+                    self.logger.fatal(
+                        "Download failed for {}: {}".format(url_match.string, e))
                     break
                 try_count += 1
 
@@ -290,7 +295,8 @@ class MentionEveryone(BotPipelineSegmentBase):
             else:
                 return
         mentioned_users: List[str] = []
-        async for user in bot.get_chat_members(message.chat.id):  # user: ChatMember
+        # user: ChatMember
+        async for user in bot.get_chat_members(message.chat.id):
             user_mention = f"[{user.user.username or user.user.first_name}](tg://user?id={user.user.id})"
             mentioned_users.append(user_mention)
 
@@ -344,9 +350,33 @@ class ReactionCounter(BotPipelineSegmentBase):
             return
         return message.text == ".leaderboard" and message.from_user.is_self
 
+    async def update_loading_async(self, message: MessageAdapter):
+        postfix = ''
+        while True:
+            postfix += '.'
+            if len(postfix) > 3:
+                postfix = ''
+            await message.edit_text("Loading leaderboard" + postfix)
+            await asyncio.sleep(.5)
+
+    def stop_loading(self, thread: asyncio.Future):
+        thread.cancel()
+
+    async def create_loading_message_async(self, bot: Client, message: MessageAdapter):
+        loading_message = await message.reply_text("⌛ Loading leaderboard")
+
+        # Create a new thread and call update_loading
+        loop = asyncio.get_event_loop()
+        thread = loop.create_task(self.update_loading_async(loading_message))
+
+        return thread, loading_message
+
     async def process_message(self, bot: Client, message: MessageAdapter):
         if (not self.can_handle(message)):
             return
+
+        loading_anim_future, og_msg = await self.create_loading_message_async(bot, message)
+
         start_date = datetime.today() - timedelta(days=1)
         reactions_dict = dict()
         messages_count_dict = dict()
@@ -387,7 +417,8 @@ class ReactionCounter(BotPipelineSegmentBase):
         reply_message += "\n\n**Yappin Leaderboard 🗣️**\n"
         reply_message += '\n'.join(['- {} : {}'.format(x, messages_count_dict[x])
                                    for x in messages_count_dict])
-        await message.reply_text(reply_message)
+        await og_msg.edit_text(reply_message)
+        self.stop_loading(loading_anim_future)
 
     def RegisterSegment(self, sambot: Sambot, bot: Client):
         self.sambot = sambot
@@ -396,15 +427,49 @@ class ReactionCounter(BotPipelineSegmentBase):
 
 
 class WordCloudGenerator(BotPipelineSegmentBase):
+
+    currentMessage = ''
+    isRunning = False
+
     def can_handle(self, message: MessageAdapter):
         if not message.text:
             return
         return message.text == ".wordcloud" and message.from_user.is_self
 
+    async def update_loading_async(self, message: MessageAdapter):
+        postfix = ''
+        while True:
+            postfix += '.'
+            if len(postfix) > 3:
+                postfix = ''
+            await message.edit_text(f'`{self.currentMessage}{postfix}`', parse_mode=ParseMode.MARKDOWN)
+            await asyncio.sleep(.5)
+
+    def stop_loading(self, thread: asyncio.Future):
+        thread.cancel()
+
+    async def create_loading_message_async(self, bot: Client, message: MessageAdapter):
+        loading_message = await message.reply_text("⌛ Loading leaderboard")
+
+        # Create a new thread and call update_loading
+        loop = asyncio.get_event_loop()
+        thread = loop.create_task(self.update_loading_async(loading_message))
+
+        return thread, loading_message
+
     async def process_message(self, bot: Client, message: MessageAdapter):
+        # Check if the message is from me
         if (not self.can_handle(message)):
             return
-        start_date = datetime.today() - timedelta(days=1)
+        
+        if (self.isRunning):
+            await message.reply_text("I'm already generating a wordcloud, please try again later")
+            return
+        
+        future, og_msg = await self.create_loading_message_async(bot, message)
+        self.isRunning = True
+
+        start_date = datetime.today() - timedelta(days=3)
         messages_list = []
         # Fetch messages from the chat
         async for msg in bot.get_chat_history(message.chat.id):
@@ -415,10 +480,16 @@ class WordCloudGenerator(BotPipelineSegmentBase):
                 messages_list.append(msg.text)
             else:
                 break  # Stop if messages are older than start_date
+            self.currentMessage = f'Reading messages from {msg.date.strftime("%Y-%m-%d")}'
 
+        self.currentMessage = f'Generating wordcloud from {len(messages_list)} messages'
         joined = ' '.join(messages_list)
         wordcloud = WordCloud(
-            width=2000, height=2000).generate(joined).to_image()
+            width=1080,
+            height=1080,
+            min_word_length=3,
+
+        ).generate(joined).to_image()
 
         binary_io = BytesIO()
 
@@ -430,6 +501,9 @@ class WordCloudGenerator(BotPipelineSegmentBase):
             reply_to_message_id=message.reply_to_message_id or message.reply_to_top_message_id,
             photo=binary_io
         )
+        self.stop_loading(future)
+        await og_msg.delete()
+        self.isRunning = False
 
     def RegisterSegment(self, sambot: Sambot, bot: Client):
         self.sambot = sambot
@@ -579,7 +653,8 @@ class RemindMeLater(BotPipelineSegmentBase):
         if not match:
             raise ValueError("Invalid time format")
         days, hours, minutes, seconds = match.groups(default='0')
-        total_seconds = int(days) * 86400 + int(hours) * 3600 + int(minutes) * 60 + int(seconds)
+        total_seconds = int(days) * 86400 + int(hours) * \
+            3600 + int(minutes) * 60 + int(seconds)
         return total_seconds
 
     async def add_reminder(self, bot: Client, message: MessageAdapter):
@@ -604,21 +679,21 @@ class RemindMeLater(BotPipelineSegmentBase):
             chat_id=message.chat.id,
             user_id=message.from_user.id,
             reminder_text=reminder_val,
-            remind_at=datetime.now(timezone.utc) + timedelta(seconds=total_seconds),
+            remind_at=datetime.now(timezone.utc) +
+            timedelta(seconds=total_seconds),
             messageid=message.id
         )
-        time_left = (reminder_object.remind_at - datetime.now(timezone.utc)).total_seconds()
+        time_left = (reminder_object.remind_at -
+                     datetime.now(timezone.utc)).total_seconds()
         if (time_left < 30):
             asyncio.create_task(self.wait_and_send_reminder(reminder_object))
         else:
             self.add_reminder_to_db(reminder_object)
         await message.reply_text("⏰ Reminder added!")
 
-
     def start_check_reminder_job(self):
         loop = asyncio.get_event_loop()
         loop.call_soon(lambda: asyncio.create_task(self.check_reminders()))
-        
 
     async def check_reminders(self):
         self.logger.info("Starting reminder background job...")
@@ -627,25 +702,30 @@ class RemindMeLater(BotPipelineSegmentBase):
             reminders = session.query(Reminder).filter(
                 Reminder.remind_at <= datetime.now(timezone.utc) + timedelta(seconds=30)).all()
             for reminder in reminders:
-                asyncio.create_task(self.wait_and_send_reminder(reminder, cleanup=True))
+                asyncio.create_task(
+                    self.wait_and_send_reminder(reminder, cleanup=True))
             await asyncio.sleep(30)
 
-    async def wait_and_send_reminder(self, reminder:Reminder, cleanup: bool = False):
+    async def wait_and_send_reminder(self, reminder: Reminder, cleanup: bool = False):
         if reminder.remind_at.tzinfo is None:
-            reminder.remind_at = reminder.remind_at.replace(tzinfo=timezone.utc)
+            reminder.remind_at = reminder.remind_at.replace(
+                tzinfo=timezone.utc)
 
-        time_left = (reminder.remind_at - datetime.now(timezone.utc)).total_seconds()
-        
-        self.logger.info("Reminder found: {} with {}s left : arming".format(reminder.reminder_text, time_left))
+        time_left = (reminder.remind_at -
+                     datetime.now(timezone.utc)).total_seconds()
+
+        self.logger.info("Reminder found: {} with {}s left : arming".format(
+            reminder.reminder_text, time_left))
         await asyncio.sleep(time_left)
         original_user = (await self.sambot.bot.get_users(reminder.user_id))
         await self.sambot.bot.send_message(
             chat_id=reminder.chat_id,
-            text="Hey [{}](tg://user?id={})! This is a reminder for: **{}** ⏰".format(original_user.first_name, reminder.user_id, reminder.reminder_text),
+            text="Hey [{}](tg://user?id={})! This is a reminder for: **{}** ⏰".format(
+                original_user.first_name, reminder.user_id, reminder.reminder_text),
             reply_to_message_id=reminder.messageid,
             parse_mode=ParseMode.MARKDOWN
         )
-        
+
         if (cleanup):
             session = get_session()
             session.delete(reminder)
