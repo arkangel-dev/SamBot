@@ -1,3 +1,4 @@
+from typing import List
 import memes
 from pyrogram import Client
 from pyrogram.types import Message, InputMediaVideo
@@ -16,6 +17,7 @@ from database import get_session, Reminder
 import time
 import logging
 from utils import setup_logger
+from pyrogram.types import ChatMember
 class PingIndicator(BotPipelineSegmentBase):
     '''
     Segment to indicate if the bot is alive. It will send a message with uptime duration
@@ -240,7 +242,7 @@ class MentionEveryone(BotPipelineSegmentBase):
     async def can_handle(self, message: MessageAdapter):
         if not message.text:
             return False
-        if not message.chat.id in self.sambot.configuration["mentioneveryone"]["AllowedChats"]:
+        if not message.chat.id in self.sambot.configuration["mentioneveryone"]["allowed_chats"]:
             return False
         return '@everyone' in (await message.GetMentionedUsers())
 
@@ -256,10 +258,10 @@ class MentionEveryone(BotPipelineSegmentBase):
             parts.append('')
 
         if (parts[2] == 'add'):
-            self.sambot.configuration['MentionEveryone']['AllowedChats'].append(
+            self.sambot.configuration['MentionEveryone']['allowed_chats'].append(
                 message.chat.id)
         elif (parts[2] == 'remove'):
-            self.sambot.configuration['MentionEveryone']['AllowedChats'].append(
+            self.sambot.configuration['MentionEveryone']['allowed_chats'].append(
                 message.chat.id)
         else:
             await bot.send_message(
@@ -287,15 +289,20 @@ class MentionEveryone(BotPipelineSegmentBase):
                 return
             else:
                 return
-        mentioned_users = []
-        async for user in bot.get_chat_members(message.chat.id):
-            mentioned_users.append(
-                f"[{user.user.first_name}](tg://user?id={user.user.id})")
-        await bot.send_message(
-            chat_id=message.chat.id,
-            text=' '.join(mentioned_users),
-            reply_to_message_id=message.id
-        )
+        mentioned_users: List[str] = []
+        async for user in bot.get_chat_members(message.chat.id):  # user: ChatMember
+            user_mention = f"[{user.user.username or user.user.first_name}](tg://user?id={user.user.id})"
+            mentioned_users.append(user_mention)
+
+        # Chunk the mentioned_users list into groups of 5
+        chunk_size = 5
+        for i in range(0, len(mentioned_users), chunk_size):
+            chunk = mentioned_users[i:i + chunk_size]
+            await bot.send_message(
+                chat_id=message.chat.id,
+                text=' '.join(chunk),
+                reply_to_message_id=message.id
+            )
 
     def RegisterSegment(self, sambot: Sambot, bot: Client):
         self.sambot = sambot
@@ -684,8 +691,8 @@ class RemindMeLater(BotPipelineSegmentBase):
         message = MessageAdapter(message)
         if not message.text:
             return
-        if await self.check_if_reminders_allowed(message):
-            if message.text.split()[0] == '.remindme':
+        if message.text.split()[0] == '.remindme':
+            if await self.check_if_reminders_allowed(message):
                 await self.add_reminder(bot, message)
         if message.from_user.is_self:
             if ' '.join(message.text.split()[:2]) == '.config remindme':
