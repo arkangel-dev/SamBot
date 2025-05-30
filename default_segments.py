@@ -102,7 +102,7 @@ class TikTokDownloader(BotPipelineSegmentBase):
         if message.reply_to_message.from_user.id in self.sambot.configuration["TikTokDl"]["BannedUsers"]:
             await message.edit_text("This guy is already banned")
             return
-        self.sambot.configuration["TikTokDl"]["BannedUsers"].append(
+        self.sambot.configuration['TikTokDl']['BannedUsers'].append(
             message.reply_to_message.from_user.id)
         self.sambot.SaveConfiguration()
         await message.edit_text("This fool has been banned!")
@@ -111,7 +111,7 @@ class TikTokDownloader(BotPipelineSegmentBase):
         if not message.reply_to_message.from_user.id in self.sambot.configuration["TikTokDl"]["BannedUsers"]:
             await message.edit_text("This guy was not banned")
             return
-        self.sambot.configuration["TikTokDl"]["BannedUsers"].remove(
+        self.sambot.configuration['TikTokDl']['BannedUsers'].remove(
             message.reply_to_message.from_user.id)
         self.sambot.SaveConfiguration()
         await message.edit_text("This fool has been unbanned!")
@@ -154,7 +154,7 @@ class TikTokDownloader(BotPipelineSegmentBase):
 
         # If the fool is banned, react to the origin
         # message with the bird
-        if message.from_user.id in self.sambot.configuration["TikTokDl"]["BannedUsers"]:
+        if message.from_user.id in self.sambot.configuration['TikTokDl']['BannedUsers']:
             await message.react("🖕")
             return
 
@@ -247,7 +247,7 @@ class MentionEveryone(BotPipelineSegmentBase):
     async def can_handle(self, message: MessageAdapter):
         if not message.text:
             return False
-        if not message.chat.id in self.sambot.configuration["mentioneveryone"]["allowed_chats"]:
+        if not message.chat.id in self.sambot.configuration["MentionEveryone"]["AllowedChats"]:
             return False
         return '@everyone' in (await message.GetMentionedUsers())
 
@@ -263,10 +263,10 @@ class MentionEveryone(BotPipelineSegmentBase):
             parts.append('')
 
         if (parts[2] == 'add'):
-            self.sambot.configuration['MentionEveryone']['allowed_chats'].append(
+            self.sambot.configuration['MentionEveryone']['AllowedChats'].append(
                 message.chat.id)
         elif (parts[2] == 'remove'):
-            self.sambot.configuration['MentionEveryone']['allowed_chats'].append(
+            self.sambot.configuration['MentionEveryone']['AllowedChats'].append(
                 message.chat.id)
         else:
             await bot.send_message(

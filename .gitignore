@@ -13,3 +13,4 @@ ext-mount
 .vscode
 l360.token
 terminate-lockfile
+rescued_messages.db
