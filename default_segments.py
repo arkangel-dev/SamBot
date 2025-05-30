@@ -2,11 +2,11 @@ import sqlalchemy
 from typing import List
 import memes
 from pyrogram import Client
-from pyrogram.types import Message, InputMediaVideo
-from pyrogram.enums import ParseMode
+from pyrogram.types import Message, InputMediaVideo, User
+from pyrogram.enums import ParseMode, UserStatus
 from datetime import datetime, timezone, timedelta
 from sambot import Sambot, BotPipelineSegmentBase, MessageAdapter
-from pyrogram.handlers import MessageHandler
+from pyrogram.handlers import MessageHandler, UserStatusHandler
 from wordcloud import WordCloud
 import asyncio
 import re
@@ -14,7 +14,8 @@ from io import BytesIO
 import random
 from PyL360 import L360Client
 import os
-from database import get_session, Reminder
+from database import (create_new_session, get_session, MessageData, Reminder, UserActivity,
+    SmbUserStatus)
 import time
 import logging
 from utils import setup_logger
@@ -783,3 +784,115 @@ class RemindMeLater(BotPipelineSegmentBase):
         handler = MessageHandler(self.process_message)
         bot.add_handler(handler, 1008)
         self.start_check_reminder_job()
+
+class TotalRecall(BotPipelineSegmentBase):
+    '''
+    Segment to log messages from the chat.
+    '''
+
+    def __init__(self):
+        self.logger = logging.getLogger('TotalRecall')
+        setup_logger(self.logger)
+
+    
+    async def populate_past_n_days(self, bot: Client, message: MessageAdapter):
+        message_parts = message.text.split()
+        if len(message_parts) != 2:
+            return
+        
+        try:
+            days = int(message_parts[1])
+        except ValueError:
+            return
+        
+        self.logger.info(f"Populating past {days} days of messages for chat {message.chat.id}")
+        await message.edit_text(f'⏳ Populating past {days} days of messages')
+        session = create_new_session()
+        async for hist_msg in bot.get_chat_history(message.chat.id):
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+            msg_date = hist_msg.date
+            if msg_date.tzinfo is None:
+                msg_date = msg_date.replace(tzinfo=timezone.utc)
+            if msg_date < cutoff_date: break
+            
+            tx = session.begin_nested()
+            try:
+                session.add(MessageData(
+                    chat_id=hist_msg.chat.id,
+                    user_id=hist_msg.from_user.id,
+                    message_id=hist_msg.id,
+                    sent_at=hist_msg.date,
+                    message_text=hist_msg.text or '',
+                    full_payload=str(hist_msg)
+                ))
+                tx.commit()
+            except:
+                tx.rollback()
+                pass
+        session.commit()
+        self.logger.info(f'Populating past {days} days of messages for chat completed')
+        await message.edit_text(f'✅ Populating past {days} days of messages for chat completed')
+        pass
+
+    async def process_message(self, bot: Client, message: MessageAdapter):
+        if (message.from_user.is_self):
+            if (message.text == '.stoplog'):
+                try:
+                    self.logger.info("Stopping message logging")
+                    self.sambot.configuration['TotalRecall']['MonitoredChats'].remove(message.chat.id)
+                    self.sambot.SaveConfiguration()
+                finally:
+                    await message.delete()
+            elif (message.text == '.startlog'):
+                try:
+                    if not message.chat.id in self.sambot.configuration['TotalRecall']['MonitoredChats']:
+                        self.logger.info("Starting message logging")
+                        self.sambot.configuration['TotalRecall']['MonitoredChats'].append(message.chat.id)
+                        self.sambot.SaveConfiguration()
+                finally:
+                    await message.delete()
+            elif (message.text.split()[0] == '.populate'):
+                await self.populate_past_n_days(bot, message)
+            
+        
+        if not message.chat.id in self.sambot.configuration['TotalRecall']['MonitoredChats']: return
+        session = get_session()
+        tx = session.begin_nested()
+        try:
+            session.add(MessageData(
+                chat_id=message.chat.id,
+                user_id=message.from_user.id,
+                message_id=message.id,
+                sent_at=message.date,
+                message_text=message.text or '',
+                full_payload=str(message)
+            ))
+            tx.commit()
+        except:
+            tx.rollback()
+            self.logger.error(f"Failed to log message {message.id} from chat {message.chat.id}")
+            return
+        session.commit()
+
+    
+    def on_user_state_change(self, bot: Client, user:User):
+        session = get_session()
+        tx = session.begin_nested()
+        try:
+            status = SmbUserStatus.ONLINE if user.status == UserStatus.ONLINE else SmbUserStatus.OFFLINE
+            session.add(UserActivity(
+                user_id=user.id,
+                activity_type=status.value,
+                timestamp=datetime.now(timezone.utc)
+            ))
+            tx.commit()
+        except Exception as e:
+            tx.rollback()
+            self.logger.error(f"Failed to log user state change {user.id} {e}")
+            return    
+        pass
+
+    def RegisterSegment(self, sambot: Sambot, bot: Client):
+        self.sambot = sambot
+        bot.add_handler(MessageHandler(self.process_message), 1009)
+        bot.add_handler(UserStatusHandler(self.on_user_state_change), 10091)

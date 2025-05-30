@@ -174,6 +174,7 @@ class Sambot:
         self.AddPipelineSegment(ds.WordCloudGenerator())
         self.AddPipelineSegment(ds.Life360Integration())
         self.AddPipelineSegment(ds.RemindMeLater())
+        self.AddPipelineSegment(ds.TotalRecall())
         self.AddHandlers()
         
     def Start(self) -> None:
