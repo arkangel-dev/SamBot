@@ -830,6 +830,7 @@ class TotalRecall(BotPipelineSegmentBase):
                 tx.rollback()
                 pass
         session.commit()
+        session.close()
         self.logger.info(f'Populating past {days} days of messages for chat completed')
         await message.edit_text(f'✅ Populating past {days} days of messages for chat completed')
         pass
@@ -856,7 +857,7 @@ class TotalRecall(BotPipelineSegmentBase):
             
         
         if not message.chat.id in self.sambot.configuration['TotalRecall']['MonitoredChats']: return
-        session = get_session()
+        session = create_new_session()
         tx = session.begin_nested()
         try:
             session.add(MessageData(
@@ -873,10 +874,11 @@ class TotalRecall(BotPipelineSegmentBase):
             self.logger.error(f"Failed to log message {message.id} from chat {message.chat.id}")
             return
         session.commit()
+        session.close()
 
     
     def on_user_state_change(self, bot: Client, user:User):
-        session = get_session()
+        session = create_new_session()
         tx = session.begin_nested()
         try:
             status = SmbUserStatus.ONLINE if user.status == UserStatus.ONLINE else SmbUserStatus.OFFLINE
@@ -891,6 +893,7 @@ class TotalRecall(BotPipelineSegmentBase):
             self.logger.error(f"Failed to log user state change {user.id} {e}")
             return    
         pass
+        session.close()
 
     def RegisterSegment(self, sambot: Sambot, bot: Client):
         self.sambot = sambot
